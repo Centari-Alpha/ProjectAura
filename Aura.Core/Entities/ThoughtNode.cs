@@ -17,6 +17,8 @@ public class ThoughtNode
     public AuraVector3 DailyHomePosition { get; set; }
     public bool IsOrbiting { get; set; }
 
+    public List<MediaTag> Attachments { get; set; } = new();
+
     public List<Relationship> Connections { get; set; } = new();
 
     public void AddConnection(Guid targetId, float strength)
@@ -27,9 +29,14 @@ public class ThoughtNode
         }
     }
 
-    public struct AuraVector3
-    {
-        public float X, Y, Z;
-        public AuraVector3(float x, float y, float z) { X = x; Y = y; Z = z; }
-    }
+}
+
+public class AuraVector3
+{
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+
+    public AuraVector3() { } // Needed for EF Core
+    public AuraVector3(float x, float y, float z) { X = x; Y = y; Z = z; }
 }
