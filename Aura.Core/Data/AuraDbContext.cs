@@ -12,7 +12,6 @@ public class AuraDbContext : DbContext
     public DbSet<Relationship> Relationships { get; set; }
     public DbSet<Constellation> Constellations { get; set; }
 
-    // If you ever want to inject options from ASP.NET or an app builder, you'd add a constructor.
     // For now we will just hardcode the SQLite connection directly in OnConfiguring.
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -23,9 +22,8 @@ public class AuraDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // 1. Configure the Self-Referencing Many-to-Many Connections
         modelBuilder.Entity<Relationship>()
-            .HasKey(r => new { r.SourceNodeId, r.TargetNodeId }); // Composite Key prevents duplicate exact connections
+            .HasKey(r => new { r.SourceNodeId, r.TargetNodeId });
 
         modelBuilder.Entity<Relationship>()
             .HasOne(r => r.SourceNode)
@@ -35,16 +33,13 @@ public class AuraDbContext : DbContext
 
         modelBuilder.Entity<Relationship>()
             .HasOne(r => r.TargetNode)
-            .WithMany() // Target nodes don't necessarily have a backward list unless we want bidirectionality
+            .WithMany()
             .HasForeignKey(r => r.TargetNodeId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // 2. Map AuraVector3 flat into columns (e.g. DailyHomePosition_X, DailyHomePosition_Y)
         modelBuilder.Entity<ThoughtNode>().OwnsOne(t => t.DailyHomePosition);
         modelBuilder.Entity<Constellation>().OwnsOne(c => c.CenterOfMass);
 
-        // 3. Map lists to JSON columns to keep the database flat and simple for now!
-        // We do this instead of creating a huge web of extra tables for tags and IDs.
         modelBuilder.Entity<ThoughtNode>()
             .Property(t => t.Attachments)
             .HasConversion(
