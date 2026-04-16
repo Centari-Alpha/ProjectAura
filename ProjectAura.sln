@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aura.Core", "Aura.Core\Aura.Core.csproj", "{A1D2EE7F-2ABC-4B67-9971-3A74D5C9B47A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aura.Api", "Aura.Api\Aura.Api.csproj", "{B26D72A3-B4DB-4B21-868E-D548D13FF15E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A1D2EE7F-2ABC-4B67-9971-3A74D5C9B47A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1D2EE7F-2ABC-4B67-9971-3A74D5C9B47A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1D2EE7F-2ABC-4B67-9971-3A74D5C9B47A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1D2EE7F-2ABC-4B67-9971-3A74D5C9B47A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B26D72A3-B4DB-4B21-868E-D548D13FF15E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B26D72A3-B4DB-4B21-868E-D548D13FF15E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B26D72A3-B4DB-4B21-868E-D548D13FF15E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B26D72A3-B4DB-4B21-868E-D548D13FF15E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
