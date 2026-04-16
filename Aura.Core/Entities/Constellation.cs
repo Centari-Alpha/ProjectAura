@@ -17,6 +17,6 @@ public class Constellation
     public List<Guid> NodeIds { get; set; } = new();
     
     public float OverallCohesionScore { get; set; } 
-    
+
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 }
