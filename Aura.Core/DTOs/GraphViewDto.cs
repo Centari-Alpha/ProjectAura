@@ -3,12 +3,14 @@ using System.Collections.Generic;
 
 namespace Aura.Core.DTOs;
 
+[System.Serializable]
 public class GraphViewDto
 {
     public List<NodeViewDto> Nodes { get; set; } = new();
     public List<EdgeViewDto> Edges { get; set; } = new();
 }
 
+[System.Serializable]
 public class NodeViewDto
 {
     public Guid Id { get; set; }
@@ -20,6 +22,7 @@ public class NodeViewDto
     public float Z { get; set; }
 }
 
+[System.Serializable]
 public class EdgeViewDto
 {
     public Guid SourceId { get; set; }
