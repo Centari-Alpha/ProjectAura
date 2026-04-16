@@ -14,8 +14,6 @@ public interface IAuraGraphRepository
     void RemoveNode(Guid id);
 
     // Connection / Edge Operations
-    // Centralizing these operations in a repository allows you to easily sync changes to a database 
-    // rather than mutating objects purely in-memory
     void ConnectNodes(Guid sourceId, Guid targetId, float strength, string description = "");
     void DisconnectNodes(Guid sourceId, Guid targetId);
     
