@@ -20,6 +20,7 @@ public interface IAuraGraphRepository
     IEnumerable<ThoughtNode> GetNodesInRadius(AuraVector3 centerPoint, float radius);
 
     void AddConstellation(Constellation constellation);
+    void UpdateConstellation(Constellation constellation);
     void MapNodeToConstellation(Guid nodeId, Guid constellationId);
     IEnumerable<Constellation> GetAllConstellations();
 }

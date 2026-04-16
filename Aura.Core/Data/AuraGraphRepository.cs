@@ -153,6 +153,12 @@ public class AuraGraphRepository : IAuraGraphRepository
         _context.SaveChanges();
     }
 
+    public void UpdateConstellation(Constellation constellation)
+    {
+        _context.Constellations.Update(constellation);
+        _context.SaveChanges();
+    }
+
     public IEnumerable<Constellation> GetAllConstellations()
     {
         return _context.Constellations.ToList();
