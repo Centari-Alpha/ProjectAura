@@ -14,7 +14,7 @@ namespace Aura.Unity.Core
     public class AuraClient : MonoBehaviour
     {
         [Header("API Settings")]
-        [SerializeField] private string apiBaseUrl = "http://localhost:5031"; // Default port, adjust if needed
+        [SerializeField] private string apiBaseUrl = "http://localhost:5166"; // Updated to match launchSettings.json
         [SerializeField] private float autoRefreshRate = 1.0f;
 
         public event Action<GraphViewDto> OnGraphReceived;
