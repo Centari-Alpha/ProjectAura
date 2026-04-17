@@ -21,8 +21,16 @@ namespace Aura.Unity.Visualization
         [SerializeField] private float interpolationSpeed = 5f;
         [SerializeField] private float scaleMultiplier = 10f; // API units to Unity units mapping
 
-        private Dictionary<System.Guid, AuraNode> _activeNodes = new Dictionary<System.Guid, AuraNode>();
-        private List<GameObject> _activeEdges = new List<GameObject>();
+        private class EdgeData
+        {
+            public GameObject GameObject;
+            public LineRenderer Renderer;
+            public Transform Source;
+            public Transform Target;
+        }
+
+        private Dictionary<string, AuraNode> _activeNodes = new Dictionary<string, AuraNode>();
+        private List<EdgeData> _activeEdges = new List<EdgeData>();
 
         private void OnEnable()
         {
@@ -42,7 +50,7 @@ namespace Aura.Unity.Visualization
 
         private void UpdateNodes(List<NodeViewDto> nodeDtos)
         {
-            HashSet<System.Guid> incomingIds = new HashSet<System.Guid>();
+            HashSet<string> incomingIds = new HashSet<string>();
 
             foreach (var dto in nodeDtos)
             {
@@ -76,7 +84,7 @@ namespace Aura.Unity.Visualization
         {
             // Simple edge implementation: Clear and redraw or pool
             // For high performance, we would use a LineRenderer pool
-            foreach (var edge in _activeEdges) Destroy(edge);
+            foreach (var edge in _activeEdges) Destroy(edge.GameObject);
             _activeEdges.Clear();
 
             foreach (var dto in edgeDtos)
@@ -97,7 +105,26 @@ namespace Aura.Unity.Visualization
                         lr.startWidth = width;
                         lr.endWidth = width;
                     }
-                    _activeEdges.Add(edgeObj);
+                    _activeEdges.Add(new EdgeData 
+                    { 
+                        GameObject = edgeObj, 
+                        Renderer = lr, 
+                        Source = source.transform, 
+                        Target = target.transform 
+                    });
+                }
+            }
+        }
+
+        private void Update()
+        {
+            // Smoothly update line renderer positions to follow orbiting nodes frame-by-frame
+            foreach (var edge in _activeEdges)
+            {
+                if (edge.Renderer != null && edge.Source != null && edge.Target != null)
+                {
+                    edge.Renderer.SetPosition(0, edge.Source.position);
+                    edge.Renderer.SetPosition(1, edge.Target.position);
                 }
             }
         }

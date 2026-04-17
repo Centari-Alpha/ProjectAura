@@ -24,7 +24,7 @@ public class AuraLibrarian : IAuraLibrarian
         {
             graph.Nodes.Add(new NodeViewDto
             {
-                Id = node.Id,
+                Id = node.Id.ToString(),
                 Content = node.Content,
                 Essence = node.Essence.ToString(),
                 Weight = node.Weight,
@@ -39,8 +39,8 @@ public class AuraLibrarian : IAuraLibrarian
                 {
                     graph.Edges.Add(new EdgeViewDto
                     {
-                        SourceId = connection.SourceNodeId,
-                        TargetId = connection.TargetNodeId,
+                        SourceId = connection.SourceNodeId.ToString(),
+                        TargetId = connection.TargetNodeId.ToString(),
                         Strength = connection.ConnectionStrength
                     });
                 }
@@ -68,7 +68,7 @@ public class AuraLibrarian : IAuraLibrarian
         {
             graph.Nodes.Add(new NodeViewDto
             {
-                Id = node.Id,
+                Id = node.Id.ToString(),
                 Content = node.Content,
                 Essence = node.Essence.ToString(),
                 Weight = node.Weight,
@@ -88,8 +88,8 @@ public class AuraLibrarian : IAuraLibrarian
                         {
                              graph.Edges.Add(new EdgeViewDto
                              {
-                                 SourceId = connection.SourceNodeId,
-                                 TargetId = connection.TargetNodeId,
+                                 SourceId = connection.SourceNodeId.ToString(),
+                                 TargetId = connection.TargetNodeId.ToString(),
                                  Strength = connection.ConnectionStrength
                              });
                         }

@@ -35,7 +35,8 @@ namespace Aura.Unity.Core
 
         public IEnumerator FetchViewport()
         {
-            using (UnityWebRequest webRequest = UnityWebRequest.Get($"{apiBaseUrl}/api/librarian/viewport"))
+            string url = $"{apiBaseUrl}/api/librarian/viewport";
+            using (UnityWebRequest webRequest = UnityWebRequest.Get(url))
             {
                 yield return webRequest.SendWebRequest();
 
@@ -46,6 +47,8 @@ namespace Aura.Unity.Core
                     {
                         // Note: Using JsonUtility requires a wrapper for collections
                         GraphViewDto graph = JsonUtility.FromJson<GraphViewDto>(json);
+                        
+                        Debug.Log($"[AuraClient] Fetched Viewport -> {webRequest.responseCode} OK. Nodes Parsed: {graph.Nodes?.Count ?? 0}, Edges Parsed: {graph.Edges?.Count ?? 0}");
                         
                         // If JsonUtility fails due to DTO structure, consider Newtonsoft.Json
                         // For now we assume the DTO is JsonUtility-compatible or the user will add Newtonsoft
@@ -70,6 +73,7 @@ namespace Aura.Unity.Core
 
         private IEnumerator PostThoughtRoutine(string content)
         {
+            Debug.Log($"[AuraClient] Ingesting Thought: '{content}'");
             WWWForm form = new WWWForm();
             form.AddField("content", content);
 
@@ -80,6 +84,10 @@ namespace Aura.Unity.Core
                 if (webRequest.result != UnityWebRequest.Result.Success)
                 {
                     Debug.LogError($"[AuraClient] Failed to ingest thought: {webRequest.error}");
+                }
+                else
+                {
+                    Debug.Log($"[AuraClient] Thought successfully ingested! Result: {webRequest.responseCode}");
                 }
             }
         }

@@ -26,7 +26,13 @@ builder.Services.AddCors(options =>
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    options.SerializerOptions.IncludeFields = true;
+    options.SerializerOptions.PropertyNamingPolicy = null; // Forces exact C# casing (PascalCase)
 });
+
+// Swagger documentation
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 // Database
 builder.Services.AddDbContext<AuraDbContext>();
@@ -41,6 +47,9 @@ builder.Services.AddScoped<IAuraLibrarian, AuraLibrarian>();
 builder.Services.AddHostedService<PhysicsEngineWorker>();
 
 var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseCors("AllowUnity");
 
