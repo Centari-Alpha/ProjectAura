@@ -16,21 +16,38 @@ namespace Aura.Unity.Visualization
         [SerializeField] private Core.AuraClient auraClient;
         [SerializeField] private GameObject nodePrefab;
         [SerializeField] private GameObject edgePrefab;
+        [SerializeField] private Transform playerTransform;
 
         [Header("Visualization Settings")]
         [SerializeField] private float interpolationSpeed = 5f;
         [SerializeField] private float scaleMultiplier = 10f; // API units to Unity units mapping
 
+        [Header("Global Cluster Settings")]
+        [SerializeField] private float clusterHeightOffset = 1.2f;
+        [SerializeField] private float clusterDistanceOffset = 3.0f; // Distance pushed away from the player
+        [SerializeField] private float clusterOrbitSpeed = 2.0f; // Speed of the cluster orbiting the player (Galactic)
+        [SerializeField] private float clusterLocalSpinSpeed = 1.0f; // Speed of the cluster spinning on its own axis
+
         private class EdgeData
         {
             public GameObject GameObject;
             public LineRenderer Renderer;
-            public Transform Source;
-            public Transform Target;
+            public AuraNode SourceNode;
+            public AuraNode TargetNode;
         }
 
         private Dictionary<string, AuraNode> _activeNodes = new Dictionary<string, AuraNode>();
         private List<EdgeData> _activeEdges = new List<EdgeData>();
+        private Transform _orbitPivot;
+
+        private void Start()
+        {
+            // Create the central pivot
+            _orbitPivot = new GameObject("GalaxyCenterPivot").transform;
+            
+            // Parent this graph manager to the pivot
+            transform.SetParent(_orbitPivot);
+        }
 
         private void OnEnable()
         {
@@ -63,8 +80,10 @@ namespace Aura.Unity.Visualization
                 }
                 else
                 {
-                    // Spawn new node
-                    GameObject go = Instantiate(nodePrefab, targetPos, Quaternion.identity, transform);
+                    // Spawn new node directly into the parent hierarchy
+                    GameObject go = Instantiate(nodePrefab, transform);
+                    go.transform.localPosition = targetPos; // Force LOCAL position against the offset manager!
+                    
                     AuraNode newNode = go.GetComponent<AuraNode>();
                     newNode.Initialize(dto.Id, dto.Content, dto.Essence);
                     _activeNodes.Add(dto.Id, newNode);
@@ -109,8 +128,8 @@ namespace Aura.Unity.Visualization
                     { 
                         GameObject = edgeObj, 
                         Renderer = lr, 
-                        Source = source.transform, 
-                        Target = target.transform 
+                        SourceNode = source, 
+                        TargetNode = target 
                     });
                 }
             }
@@ -118,13 +137,38 @@ namespace Aura.Unity.Visualization
 
         private void Update()
         {
+            // Swing the entire graph around the player (Galactic Orbit)
+            if (_orbitPivot != null)
+            {
+                // Identify the player's current physical position in the room
+                Vector3 playerPos = playerTransform != null ? playerTransform.position : (Camera.main != null ? Camera.main.transform.position : Vector3.zero);
+                
+                // Keep the Pivot dynamically tracked to the player XZ, but lock the Y to our Height Offset
+                _orbitPivot.position = new Vector3(playerPos.x, clusterHeightOffset, playerPos.z);
+                
+                // Spin the pivot, carrying the offset cluster around the player
+                _orbitPivot.Rotate(Vector3.up, clusterOrbitSpeed * Time.deltaTime);
+            }
+
+            // Continuously apply the distance offset so we can tweak it live in the Inspector
+            transform.localPosition = new Vector3(0, 0, clusterDistanceOffset);
+
+            // Slowly rotate the actual cluster on its own axis (Solar System Spin)
+            transform.Rotate(Vector3.up, clusterLocalSpinSpeed * Time.deltaTime);
+
             // Smoothly update line renderer positions to follow orbiting nodes frame-by-frame
             foreach (var edge in _activeEdges)
             {
-                if (edge.Renderer != null && edge.Source != null && edge.Target != null)
+                if (edge.Renderer != null && edge.SourceNode != null && edge.TargetNode != null)
                 {
-                    edge.Renderer.SetPosition(0, edge.Source.position);
-                    edge.Renderer.SetPosition(1, edge.Target.position);
+                    bool isSettled = !edge.SourceNode.IsStartingUp && !edge.TargetNode.IsStartingUp;
+                    edge.Renderer.enabled = isSettled;
+
+                    if (isSettled)
+                    {
+                        edge.Renderer.SetPosition(0, edge.SourceNode.transform.position);
+                        edge.Renderer.SetPosition(1, edge.TargetNode.transform.position);
+                    }
                 }
             }
         }

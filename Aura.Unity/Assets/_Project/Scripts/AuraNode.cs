@@ -27,6 +27,13 @@ namespace Aura.Unity.Visualization
         private float _orbitRadius;
         private float _orbitYOffset;
 
+        [Header("Startup Phase")]
+        [SerializeField] private float startupDuration = 4.0f;
+        [SerializeField] private float startupSpeedMultiplier = 8.0f;
+        private float _startupTimer;
+        
+        public bool IsStartingUp => _startupTimer > 0;
+
         [Header("Visuals")]
         [SerializeField] private MeshRenderer glowRenderer;
         [SerializeField] private float pulseSpeed = 2f;
@@ -40,7 +47,7 @@ namespace Aura.Unity.Visualization
             Id = id;
             Content = content;
             Essence = essence;
-            _targetPosition = transform.position;
+            _targetPosition = transform.localPosition;
             _baseScale = transform.localScale;
             
             // Create a deterministic but pseudo-random orbit profile based on ID
@@ -62,6 +69,8 @@ namespace Aura.Unity.Visualization
                 _glowMaterial = glowRenderer.material;
                 ApplyEssenceColor();
             }
+            
+            _startupTimer = startupDuration;
         }
 
         public void UpdateTarget(Vector3 position, float weight, string essence)
@@ -78,19 +87,42 @@ namespace Aura.Unity.Visualization
 
         private void Update()
         {
+            // Determine orbit speed and anchor point based on startup phase
+            float currentSpeedMultiplier = 1f;
+            Vector3 anchorPosition = _targetPosition;
+
+            if (_startupTimer > 0)
+            {
+                _startupTimer -= Time.deltaTime;
+                
+                // Calculate progress (1 = just spawned, 0 = fully settled)
+                float startupProgress = Mathf.Clamp01(_startupTimer / startupDuration);
+                
+                // Smooth easing curve so it doesn't snap abruptly
+                float easeProgress = Mathf.Pow(startupProgress, 2f); 
+                
+                currentSpeedMultiplier = 1f + (startupSpeedMultiplier * easeProgress);
+                
+                // Seek the player's head (main camera) as the initial orbit core, mapped to Local Space!
+                Vector3 playerPosWorld = Camera.main != null ? Camera.main.transform.position : Vector3.zero;
+                Vector3 playerPosLocal = transform.parent != null ? transform.parent.InverseTransformPoint(playerPosWorld) : playerPosWorld;
+                
+                anchorPosition = Vector3.Lerp(_targetPosition, playerPosLocal, easeProgress);
+            }
+
             // Update Orbit Angle
-            _orbitAngle += _orbitSpeed * Time.deltaTime;
+            _orbitAngle += _orbitSpeed * currentSpeedMultiplier * Time.deltaTime;
             
-            // Calculate orbital offset around the target position from the API
+            // Calculate orbital offset around the anchor position
             Vector3 orbitOffset = new Vector3(
                 Mathf.Cos(_orbitAngle * Mathf.Deg2Rad) * _orbitRadius,
                 _orbitYOffset,
                 Mathf.Sin(_orbitAngle * Mathf.Deg2Rad) * _orbitRadius
             );
 
-            // Smooth movement towards the orbiting position
-            Vector3 finalTarget = _targetPosition + orbitOffset;
-            transform.position = Vector3.SmoothDamp(transform.position, finalTarget, ref _currentVelocity, smoothTime);
+            // Smooth movement towards the orbiting position inside Local Space
+            Vector3 finalTarget = anchorPosition + orbitOffset;
+            transform.localPosition = Vector3.SmoothDamp(transform.localPosition, finalTarget, ref _currentVelocity, smoothTime);
 
             // Premium Pulse Effect
             float pulse = 1.0f + Mathf.Sin(Time.time * pulseSpeed) * pulseAmount;
