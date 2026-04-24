@@ -16,6 +16,7 @@ namespace Aura.Unity.Visualization
         [Header("Movement")]
         [SerializeField] private float smoothTime = 0.3f;
         private Vector3 _targetPosition;
+        private Vector3 _currentAnchor;
         private Vector3 _currentVelocity;
 
         [Header("Orbiting")]
@@ -48,6 +49,7 @@ namespace Aura.Unity.Visualization
             Content = content;
             Essence = essence;
             _targetPosition = transform.localPosition;
+            _currentAnchor = _targetPosition;
             _baseScale = transform.localScale;
             
             // Create a deterministic but pseudo-random orbit profile based on ID
@@ -85,11 +87,40 @@ namespace Aura.Unity.Visualization
             ApplyEssenceColor();
         }
 
+        public bool IsGrabbed { get; private set; }
+
+        public void OnGrabBegin()
+        {
+            IsGrabbed = true;
+            AtmosphericGraphManager.Instance?.SetGrabbedNode(this);
+            
+            // Short "Ping" interaction scale bump
+            transform.localScale = _baseScale * 1.4f;
+        }
+
+        public void OnGrabEnd()
+        {
+            IsGrabbed = false;
+            AtmosphericGraphManager.Instance?.ClearGrabbedNode(this);
+        }
+
         private void Update()
         {
+            if (IsGrabbed)
+            {
+                // When grabbed, the physical hand controls the transform position (XR Grab).
+                // Just pulse the scale to indicate active hold.
+                float grabbedPulse = 1.0f + Mathf.Sin(Time.time * pulseSpeed * 2f) * (pulseAmount * 1.5f);
+                transform.localScale = _baseScale * grabbedPulse;
+                
+                // Allow the anchor to follow the hand roughly so it doesn't snap wildly back
+                _currentAnchor = transform.localPosition;
+                return;
+            }
+
             // Determine orbit speed and anchor point based on startup phase
             float currentSpeedMultiplier = 1f;
-            Vector3 anchorPosition = _targetPosition;
+            Vector3 desiredAnchor = _targetPosition;
 
             if (_startupTimer > 0)
             {
@@ -103,12 +134,35 @@ namespace Aura.Unity.Visualization
                 
                 currentSpeedMultiplier = 1f + (startupSpeedMultiplier * easeProgress);
                 
-                // Seek the player's head (main camera) as the initial orbit core, mapped to Local Space!
-                Vector3 playerPosWorld = Camera.main != null ? Camera.main.transform.position : Vector3.zero;
-                Vector3 playerPosLocal = transform.parent != null ? transform.parent.InverseTransformPoint(playerPosWorld) : playerPosWorld;
-                
-                anchorPosition = Vector3.Lerp(_targetPosition, playerPosLocal, easeProgress);
+                // All nodes converge from the map origin (0,0,0) and spiral outward to their target positions.
+                desiredAnchor = Vector3.Lerp(_targetPosition, Vector3.zero, easeProgress);
             }
+            else
+            {
+                // Nebula Effect: Drift towards grabbed star if related
+                var graphMgr = AtmosphericGraphManager.Instance;
+                if (graphMgr != null && graphMgr.CurrentGrabbedNode != null && graphMgr.CurrentGrabbedNode != this)
+                {
+                    if (graphMgr.AreNodesConnected(this, graphMgr.CurrentGrabbedNode))
+                    {
+                        Vector3 grabTargetLocal = graphMgr.CurrentGrabbedNode.transform.localPosition;
+                        
+                        // We want the related node to drift toward the held one, 
+                        // but stay orbitRadius clear of its exact center.
+                        Vector3 directionToGrabbed = (grabTargetLocal - _targetPosition).sqrMagnitude > 0.01f ? 
+                            (grabTargetLocal - _targetPosition).normalized : UnityEngine.Random.onUnitSphere;
+
+                        // Desired anchor shifts towards the grabbed star
+                        desiredAnchor = grabTargetLocal - (directionToGrabbed * (_orbitRadius * 1.25f));
+                        
+                        // Swirl faster around the held star
+                        currentSpeedMultiplier = 2.5f; 
+                    }
+                }
+            }
+
+            // Smoothly move the actual anchor towards the desired anchor
+            _currentAnchor = Vector3.Lerp(_currentAnchor, desiredAnchor, Time.deltaTime * 3.0f);
 
             // Update Orbit Angle
             _orbitAngle += _orbitSpeed * currentSpeedMultiplier * Time.deltaTime;
@@ -121,7 +175,7 @@ namespace Aura.Unity.Visualization
             );
 
             // Smooth movement towards the orbiting position inside Local Space
-            Vector3 finalTarget = anchorPosition + orbitOffset;
+            Vector3 finalTarget = _currentAnchor + orbitOffset;
             transform.localPosition = Vector3.SmoothDamp(transform.localPosition, finalTarget, ref _currentVelocity, smoothTime);
 
             // Premium Pulse Effect

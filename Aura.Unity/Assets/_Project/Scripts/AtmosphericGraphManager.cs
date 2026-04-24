@@ -25,8 +25,9 @@ namespace Aura.Unity.Visualization
         [Header("Global Cluster Settings")]
         [SerializeField] private float clusterHeightOffset = 1.2f;
         [SerializeField] private float clusterDistanceOffset = 3.0f; // Distance pushed away from the player
-        [SerializeField] private float clusterOrbitSpeed = 2.0f; // Speed of the cluster orbiting the player (Galactic)
+        [SerializeField] private float clusterOrbitSpeed = 2.0f;  // Speed of the cluster orbiting the player (Galactic)
         [SerializeField] private float clusterLocalSpinSpeed = 1.0f; // Speed of the cluster spinning on its own axis
+        [SerializeField] private float lazyFollowSpeed = 0.5f;     // How slowly the cluster drifts toward the player (lower = more lag)
 
         private class EdgeData
         {
@@ -39,6 +40,31 @@ namespace Aura.Unity.Visualization
         private Dictionary<string, AuraNode> _activeNodes = new Dictionary<string, AuraNode>();
         private List<EdgeData> _activeEdges = new List<EdgeData>();
         private Transform _orbitPivot;
+        private Vector3 _currentPivotVelocity = Vector3.zero;
+
+        private Dictionary<AuraNode, HashSet<AuraNode>> _adjacencyList = new Dictionary<AuraNode, HashSet<AuraNode>>();
+
+        public static AtmosphericGraphManager Instance { get; private set; }
+        public AuraNode CurrentGrabbedNode { get; private set; }
+
+        public void SetGrabbedNode(AuraNode node) => CurrentGrabbedNode = node;
+        
+        public void ClearGrabbedNode(AuraNode node) 
+        {
+            if (CurrentGrabbedNode == node) CurrentGrabbedNode = null;
+        }
+
+        public bool AreNodesConnected(AuraNode a, AuraNode b)
+        {
+            if (a == null || b == null) return false;
+            return _adjacencyList.TryGetValue(a, out var set) && set.Contains(b);
+        }
+
+        private void Awake()
+        {
+            if (Instance == null) Instance = this;
+            else Destroy(gameObject);
+        }
 
         private void Start()
         {
@@ -101,36 +127,58 @@ namespace Aura.Unity.Visualization
 
         private void UpdateEdges(List<EdgeViewDto> edgeDtos)
         {
-            // Simple edge implementation: Clear and redraw or pool
-            // For high performance, we would use a LineRenderer pool
-            foreach (var edge in _activeEdges) Destroy(edge.GameObject);
-            _activeEdges.Clear();
-
-            foreach (var dto in edgeDtos)
+            // Rebuild Adjacency List for fast "Nebula Effect" lookups
+            _adjacencyList.Clear();
+            foreach (var node in _activeNodes.Values)
             {
+                _adjacencyList[node] = new HashSet<AuraNode>();
+            }
+
+            // Object Pooling implementation: Reuse existing edges to stop stuttering
+            int requiredEdges = edgeDtos.Count;
+            while (_activeEdges.Count < requiredEdges)
+            {
+                GameObject edgeObj = Instantiate(edgePrefab, transform);
+                LineRenderer lr = edgeObj.GetComponent<LineRenderer>();
+                _activeEdges.Add(new EdgeData { GameObject = edgeObj, Renderer = lr });
+            }
+
+            // Deactivate any extra edges
+            for (int i = requiredEdges; i < _activeEdges.Count; i++)
+            {
+                _activeEdges[i].GameObject.SetActive(false);
+            }
+
+            for (int i = 0; i < requiredEdges; i++)
+            {
+                var dto = edgeDtos[i];
+                var edgeData = _activeEdges[i];
+
                 if (_activeNodes.TryGetValue(dto.SourceId, out AuraNode source) &&
                     _activeNodes.TryGetValue(dto.TargetId, out AuraNode target))
                 {
-                    GameObject edgeObj = Instantiate(edgePrefab, transform);
-                    LineRenderer lr = edgeObj.GetComponent<LineRenderer>();
-                    if (lr != null)
+                    _adjacencyList[source].Add(target);
+                    _adjacencyList[target].Add(source); // Bidirectional mapping
+
+                    edgeData.GameObject.SetActive(true);
+                    edgeData.SourceNode = source;
+                    edgeData.TargetNode = target;
+
+                    if (edgeData.Renderer != null)
                     {
-                        lr.positionCount = 2;
-                        lr.SetPosition(0, source.transform.position);
-                        lr.SetPosition(1, target.transform.position);
+                        edgeData.Renderer.positionCount = 2;
+                        edgeData.Renderer.SetPosition(0, source.transform.position);
+                        edgeData.Renderer.SetPosition(1, target.transform.position);
                         
                         // Premium visual: Width based on strength
                         float width = Mathf.Clamp(dto.Strength * 0.1f, 0.02f, 0.2f);
-                        lr.startWidth = width;
-                        lr.endWidth = width;
+                        edgeData.Renderer.startWidth = width;
+                        edgeData.Renderer.endWidth = width;
                     }
-                    _activeEdges.Add(new EdgeData 
-                    { 
-                        GameObject = edgeObj, 
-                        Renderer = lr, 
-                        SourceNode = source, 
-                        TargetNode = target 
-                    });
+                }
+                else
+                {
+                    edgeData.GameObject.SetActive(false);
                 }
             }
         }
@@ -143,8 +191,16 @@ namespace Aura.Unity.Visualization
                 // Identify the player's current physical position in the room
                 Vector3 playerPos = playerTransform != null ? playerTransform.position : (Camera.main != null ? Camera.main.transform.position : Vector3.zero);
                 
-                // Keep the Pivot dynamically tracked to the player XZ, but lock the Y to our Height Offset
-                _orbitPivot.position = new Vector3(playerPos.x, clusterHeightOffset, playerPos.z);
+                // Target position: player's XZ position locked to the height offset
+                Vector3 targetPivotPos = new Vector3(playerPos.x, clusterHeightOffset, playerPos.z);
+                
+                // Lazily drift the pivot toward the player — cluster trails behind like a slow-moving nebula
+                _orbitPivot.position = Vector3.SmoothDamp(
+                    _orbitPivot.position,
+                    targetPivotPos,
+                    ref _currentPivotVelocity,
+                    1f / Mathf.Max(lazyFollowSpeed, 0.01f)
+                );
                 
                 // Spin the pivot, carrying the offset cluster around the player
                 _orbitPivot.Rotate(Vector3.up, clusterOrbitSpeed * Time.deltaTime);
